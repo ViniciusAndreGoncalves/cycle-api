@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreMovimentacaoRequest;
 use App\Models\Movimentacao;
 use App\Models\Carteira;
 use Illuminate\Http\Request;
@@ -26,29 +27,15 @@ class MovimentacaoController extends Controller
         return $movimentacoes;
     }
 
-    /**
-     * CRIAR (POST /api/movimentacoes)
-     * Registra uma compra/venda.
-     * Injeção de dependência do Request para validação dos dados.
-     */
-    public function store(Request $request)
+    public function store(StoreMovimentacaoRequest $request)
     {
-        $validated = $request->validate([
-            'carteira_id' => 'required|exists:carteiras,id',
-            'ativo_id' => 'required|exists:ativos,id',
-            'tipo' => 'required|in:Compra,Venda,Aporte,Resgate',
-            'quantidade' => 'required|numeric|gt:0',
-            'preco_unitario' => 'required|numeric|gte:0',
-            'data_movimentacao' => 'required|date',
-        ]);
-
-        $carteira = Carteira::findOrFail($validated['carteira_id']);
+        $carteira = Carteira::find($request['carteira_id']);
 
         if ($carteira->user_id !== Auth::id()) {
             return response()->json(['error' => 'Acesso negado à carteira especificada.'], 403);
         }
 
-        $movimentacao = Movimentacao::create($validated);
+        $movimentacao = Movimentacao::create($request->validated());
 
         return response()->json($movimentacao->load('ativo'), 201);
 
