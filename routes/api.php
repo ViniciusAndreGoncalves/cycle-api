@@ -13,6 +13,10 @@ Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
+Route::get('ativos', [AtivoController::class, 'index']); 
+Route::get('ativos/{ativo}', [AtivoController::class, 'show']);
+Route::get('categorias-ativos', [CategoriaAtivoController::class, 'index']);
+
 Route::middleware('auth:sanctum')->group(function () {
     
     Route::get('/user', function (Request $request) {
@@ -33,11 +37,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/movimentacoes/{movimentacao}', [MovimentacaoController::class, 'update'])->name('movimentacoes.update');
     Route::delete('/movimentacoes/{movimentacao}', [MovimentacaoController::class, 'destroy'])->name('movimentacoes.delete');
 
-    //Rotas para Ativo
-    Route::apiResource('ativos', AtivoController::class)->only(['index', 'store', 'show']);
-
+    //Rotas com Resource Controllers
     Route::apiResource('despesas', DespesaController::class);
-    Route::apiResource('ativo', AtivoController::class);
     Route::apiResource('categorias', CategoriaController::class);
     Route::apiResource('categorias-ativo', CategoriaAtivoController::class)->only(['index']);
+
+    Route::post('ativos', [AtivoController::class, 'store']);
 });
