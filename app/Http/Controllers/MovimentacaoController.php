@@ -5,11 +5,12 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreMovimentacaoRequest;
 use App\Models\Movimentacao;
 use App\Models\Carteira;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class MovimentacaoController extends Controller
 {
+    use AuthorizesRequests;
     /**
      * LISTAR (GET /api/movimentacoes)
      * Retorna o histórico de operações.
@@ -75,14 +76,9 @@ class MovimentacaoController extends Controller
         return $movimentacao->load(['ativo', 'carteira'], 200);
     }
 
-    /**
-     * DELETAR (DELETE /api/movimentacoes/{id})
-     */
     public function destroy(Movimentacao $movimentacao)
     {
-        if ($movimentacao->carteira->user_id !== Auth::id()) {
-            return response()->json(['message' => 'Acesso negado'], 403);
-        }
+        $this->authorize('delete', $movimentacao);
 
         $movimentacao->delete();
 
