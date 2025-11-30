@@ -8,11 +8,15 @@ use App\Http\Controllers\AtivoController;
 use App\Http\Controllers\CategoriaAtivoController;
 use App\Http\Controllers\CategoriaController;
 use App\Http\Controllers\DespesaController;
+use App\Http\Controllers\AuthController;
+
+Route::post('/register', [AuthController::class, 'register']);
 
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
+// rOTA PARA A DASHBOARD PODER VER OS ATIVOS DA api
 Route::get('ativos', [AtivoController::class, 'index']); 
 Route::get('ativos/{ativo}', [AtivoController::class, 'show']);
 Route::get('categorias-ativos', [CategoriaAtivoController::class, 'index']);
@@ -42,5 +46,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('categorias', CategoriaController::class);
     Route::apiResource('categorias-ativo', CategoriaAtivoController::class)->only(['index']);
 
+    //Rota pra poder colocar um ativo na carteira de usuário
     Route::post('ativos', [AtivoController::class, 'store']);
 });
