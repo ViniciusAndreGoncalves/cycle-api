@@ -65,4 +65,41 @@ class AuthController extends Controller
             'message' => 'Login realizado com sucesso!'
         ], 200);
     }
+
+    public function update(Request $request)
+    {
+        $user = $request->user();
+        // 1. Validar os dados que chegaram do React
+        $fields = $request->validate([
+            'name' => 'sometimes|required|string',
+            'email' => 'sometimes|required|string|unique:users,email,' . $user->id,
+            'password' => 'sometimes|required|string|min:6|confirmed'
+        ]);
+
+        $user->name = $fields['name'];
+        $user->email = $fields['email'];
+
+        if (!empty($fields['password'])) {
+            $user->password = Hash::make($fields['password']);
+        }
+
+        $user->save();        
+
+        return response()->json([
+            'user' => $user,
+            'message' => 'Usuário atualizado com sucesso!'
+        ], 200);
+    }
+
+    public function destroy(Request $request)
+    {
+        $user = $request->user();
+        $user->tokens()->delete(); // Revoga todos os tokens do usuário
+        $user->delete(); // Deleta o usuário
+
+        return response()->json([
+            'message' => 'Logout realizado com sucesso!'
+        ], 200);
+
+    }
 }

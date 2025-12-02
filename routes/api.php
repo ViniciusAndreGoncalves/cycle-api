@@ -28,6 +28,9 @@ Route::middleware('auth:sanctum')->group(function () {
         return $request->user();
     });
 
+    Route::put('/user', [AuthController::class, 'update'])->name('user.update');
+    Route::delete('/user', [AuthController::class, 'destroy'])->name('user.destroy');
+
     //Rotas para Carteira
     Route::get('/carteira', [CarteiraController::class, 'index'])->name('carteira.index');
     Route::post('/carteira', [CarteiraController::class, 'store'])->name('carteira.store');
@@ -48,5 +51,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('categorias-ativo', CategoriaAtivoController::class)->only(['index']);
 
     //Rota pra poder colocar um ativo na carteira de usuário
-    Route::post('ativos', [AtivoController::class, 'store']);
+    Route::post('ativos', [AtivoController::class, 'store'])->name('ativos.store');
 });
