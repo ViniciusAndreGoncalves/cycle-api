@@ -36,3 +36,12 @@ RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf
 
 # 9. Expor porta 80
 EXPOSE 80
+
+# 10. Copiar o script de inicialização
+COPY start.sh /var/www/html/start.sh
+
+# 11. Dar permissão de execução e corrigir quebra de linha (Windows -> Linux)
+RUN chmod +x /var/www/html/start.sh && sed -i 's/\r$//' /var/www/html/start.sh
+
+# 12. Definir o comando padrão para rodar o script
+CMD ["/var/www/html/start.sh"]
