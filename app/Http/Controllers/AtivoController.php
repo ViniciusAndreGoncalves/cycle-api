@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Ativo;
+use App\Services\MarketDataService;
 
 class AtivoController extends Controller
 {
@@ -51,7 +52,61 @@ class AtivoController extends Controller
     }
 
     /**
-     * Update the specified resource in storage.
+     * Retorna os destaques do mercado para a Home (Público)
      */
+    public function highlights(MarketDataService $marketService)
+    {
+        $tickers = [
+            'ITUB4',  // Itaú
+            'PETR4',  // Petrobras
+            'VALE3',  // Vale            
+            'BPAC11', // BTG Pactual
+            'ABEV3',  // Ambev
+            'WEGE3',  // WEG            
+            'ELET3',  // Eletrobras
+            'BBAS3',  // Banco do Brasil
+            ];
+        
+        // Busca na API
+        $prices = $marketService->getPrices($tickers);
+        
+        $data = [];
+        foreach ($tickers as $ticker) {
+            
+            // Inicializa com 0 por segurança
+            $price = 0;
+
+            // Se a API retornou este ticker, atualiza o valor
+            if (isset($prices[$ticker])) {
+                $price = $prices[$ticker];
+            }
+            // ---------------------------
+
+            $data[] = [
+                'symbol' => $ticker,
+                'name' => $this->getAssetName($ticker), 
+                'price' => (float)$price,
+                'change' => 0, 
+                'isCrypto' => false
+            ];
+        }
+
+        return response()->json($data);
+    }
+
+    private function getAssetName($ticker) {
+        return match ($ticker) {
+            'PETR4' => 'Petrobras',
+            'VALE3' => 'Vale',
+            'ITUB4' => 'Itaú Unibanco',
+            'WEGE3' => 'WEG',
+            'MGLU3' => 'Magalu',
+            'BBAS3' => 'Banco do Brasil',
+            'ELET3', => 'Eletrobras',
+            'ABEV3', => 'Ambev',
+            'BPAC11', => 'BTG Pactual',
+            default => $ticker
+        };
+    }
     
 }

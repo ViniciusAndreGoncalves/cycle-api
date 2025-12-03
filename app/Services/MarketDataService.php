@@ -4,12 +4,13 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class MarketDataService
 {
     protected $baseUrl = 'https://brapi.dev/api';
     protected $token;
-    // Você pode pegar um token grátis no site deles, ou usar sem token (limitado)
+    
     public function __construct()
     {
         $this->token = env('BRAPI_TOKEN', '');
@@ -20,40 +21,37 @@ class MarketDataService
      */
     public function getPrices(array $tickers)
     {
-
-        // Ordena para garantir que ['PETR4', 'VALE3'] gere a mesma chave que ['VALE3', 'PETR4']
-        sort($tickers);
+        // Cache por 60 minutos para não ficar lento toda hora
         $cacheKey = 'prices_' . md5(implode('_', $tickers));
-        /**
-        * Cache::remember faz a mágica:
-        * 1. Procura 'prices_xyz' no cache.
-        * 2. Se achar, devolve na hora (sem gastar API).
-        * 3. Se não achar, roda a função, vai na API, SALVA no cache por 15 min e devolve.
-         */
-        $cacheKey = 'prices_' . implode('_', $tickers);
         
-        return Cache::remember($cacheKey, 60 * 15, function () use ($tickers) {
-            
-            // Se não tá no cache, vai na API
-            $tickersString = implode(',', $tickers);
-            
-            // A API da Brapi aceita múltiplos tickers separados por vírgula
-            $response = Http::get("{$this->baseUrl}/quote/{$tickersString}", [
-                'token' => $this->token,
-            ]);
-
-            if ($response->failed()) {
-                return [];
-            }
-
-            // Formata a resposta para um array simples: ['PETR4' => 35.50, 'VALE3' => 60.00]
-            $data = $response->json()['results'] ?? [];
+        return Cache::remember($cacheKey, 60 * 60, function () use ($tickers) {
             
             $prices = [];
-            foreach ($data as $item) {
-                $prices[$item['symbol']] = $item['regularMarketPrice'];
-            }
 
+            // --- MUDANÇA0: BUSCA ATIVO POR ATIVO ---
+            foreach ($tickers as $ticker) {
+                try {
+                    // Log para acompanhar
+                    //Log::info("Buscando individualmente: {$ticker}");
+
+                    $response = Http::withOptions(['verify' => false])->get("{$this->baseUrl}/quote/{$ticker}", [
+                        'token' => $this->token,
+                    ]);
+
+                    if ($response->successful()) {
+                        $data = $response->json()['results'][0] ?? null;
+                        if ($data) {
+                            $prices[$ticker] = $data['regularMarketPrice'];
+                        }
+                    } else {
+                        // Se falhar um, loga e continua para o próximo
+                        //Log::warning("Falha ao buscar {$ticker}: " . $response->body());
+                    }
+
+                } catch (\Exception $e) {
+                    Log::error("Erro conexão {$ticker}: " . $e->getMessage());
+                }
+            }
             return $prices;
         });
     }
@@ -63,7 +61,7 @@ class MarketDataService
      */
     public function searchAsset($ticker)
     {
-        // 1. Tenta buscar na API
+        // Tenta buscar na API
         $response = Http::get("{$this->baseUrl}/quote/{$ticker}", [
             'token' => $this->token,
         ]);
@@ -78,8 +76,8 @@ class MarketDataService
             'ticker' => $data['symbol'],
             'nome' => $data['shortName'] ?? $data['longName'] ?? $data['symbol'],
             // A Brapi retorna o tipo? Às vezes sim, às vezes não. 
-            // Por padrão, se não soubermos, vamos jogar na categoria "Ações" (ID 1) ou criar uma lógica extra.
-            // Para o MVP, vamos assumir que se achou, é válido.
+            // Por padrão, se não souber, jogar na categoria "Ações" (ID 1) ou criar uma lógica extra.
+            // Para o MVP, assume-se que se achou, é válido.
         ];
     }
 }
