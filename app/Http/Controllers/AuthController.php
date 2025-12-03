@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Carteira;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -23,6 +24,12 @@ class AuthController extends Controller
             'email' => $fields['email'],
             'password' => Hash::make($fields['password']), // Criptografa a senha
         ]);
+        
+        Carteira::create([
+            'user_id' => $user->id,
+            'nome' => 'Minha Carteira Principal',
+            'descricao' => 'Minha Carteira Inicial'
+        ]);
 
         // 3. Criar um Token para ele já entrar logado (Opcional, mas recomendado)
         $token = $user->createToken('myapptoken')->plainTextToken;
@@ -33,6 +40,7 @@ class AuthController extends Controller
             'token' => $token,
             'message' => 'Usuário cadastrado com sucesso!'
         ], 201);
+
     }
 
     public function login(Request $request)
@@ -64,5 +72,42 @@ class AuthController extends Controller
             'token' => $token,
             'message' => 'Login realizado com sucesso!'
         ], 200);
+    }
+
+    public function update(Request $request)
+    {
+        $user = $request->user();
+        // 1. Validar os dados que chegaram do React
+        $fields = $request->validate([
+            'name' => 'sometimes|required|string',
+            'email' => 'sometimes|required|string|unique:users,email,' . $user->id,
+            'password' => 'sometimes|required|string|min:6|confirmed'
+        ]);
+
+        $user->name = $fields['name'];
+        $user->email = $fields['email'];
+
+        if (!empty($fields['password'])) {
+            $user->password = Hash::make($fields['password']);
+        }
+
+        $user->save();        
+
+        return response()->json([
+            'user' => $user,
+            'message' => 'Usuário atualizado com sucesso!'
+        ], 200);
+    }
+
+    public function destroy(Request $request)
+    {
+        $user = $request->user();
+        $user->tokens()->delete(); // Revoga todos os tokens do usuário
+        $user->delete(); // Deleta o usuário
+
+        return response()->json([
+            'message' => 'Logout realizado com sucesso!'
+        ], 200);
+
     }
 }
