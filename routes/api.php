@@ -13,14 +13,14 @@ use App\Http\Controllers\AuthController;
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
+// Rota pública para dados de mercado (Home)
+Route::get('/market/highlights', [App\Http\Controllers\AtivoController::class, 'highlights']);
+
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
-// rOTA PARA A DASHBOARD PODER VER OS ATIVOS DA api
-Route::get('ativos', [AtivoController::class, 'index']); 
-Route::get('ativos/{ativo}', [AtivoController::class, 'show']);
-Route::get('categorias-ativos', [CategoriaAtivoController::class, 'index']);
+Route::apiResource('ativos', AtivoController::class);
 
 Route::middleware('auth:sanctum')->group(function () {
     
