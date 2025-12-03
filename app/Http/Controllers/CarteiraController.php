@@ -162,6 +162,7 @@ class CarteiraController extends Controller
                 'preco_atual' => (float) $precoAtual,
                 'saldo_atual' => (float) $saldoAtual,
                 'rentabilidade_perc' => round($rentabilidadePerc, 2),
+                'rentabilidade_valor' => round($rentabilidadeValor, 2),
                 'seta' => $rentabilidadePerc >= 0 ? 'up' : 'down'
             ];
 
