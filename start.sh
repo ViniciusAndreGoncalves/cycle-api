@@ -6,6 +6,8 @@ echo "Iniciando Deploy..."
 echo "Rodando Migrations..."
 php artisan migrate --force
 
+php artisan config:cache
+
 # Rodar Seeders (Garante que a tabela de categorias existe)
 echo "Rodando Seeders..."
 php artisan db:seed --class=AssetSeeder --force

@@ -14,24 +14,21 @@ RUN apt-get update && apt-get install -y \
 # 2. Habilitar mod_rewrite
 RUN a2enmod rewrite
 
-# 3. Definir diretório de trabalho
+# 3. Diretório de trabalho
 WORKDIR /var/www/html
 
-# Em vez de COPY . /var/www/html (que copia a pasta back-end inteira)
-COPY back-end /var/www/html
+# 4. Instalar Dependências (Estratégia de Cache)
+# Copia apenas os arquivos do composer primeiro
+COPY composer.json composer.lock ./
 
-# 4. Instalar Composer (Agora vai achar o composer.json na raiz certa)
+# Instala (Se o composer.json não mudar, o Docker usa o cache aqui)
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 RUN composer install --no-interaction --optimize-autoloader --no-dev
 
-# 5. Permissões
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+# 5. Copia o código fonte (O resto da aplicação)
+COPY . .
 
-# Dar permissão de execução e corrigir quebra de linha (Windows -> Linux)
-RUN chmod +x /var/www/html/start.sh && sed -i 's/\r$//' /var/www/html/start.sh
-
-# 6. Configuração do Apache (Força Bruta - Cria o arquivo do zero)
-# Garante que AllowOverride All esteja ativado para ler o .htaccess
+# 6. Configuração do Apache
 RUN echo '<VirtualHost *:80>\n\
     ServerAdmin webmaster@localhost\n\
     DocumentRoot /var/www/html/public\n\
@@ -44,14 +41,18 @@ RUN echo '<VirtualHost *:80>\n\
     CustomLog ${APACHE_LOG_DIR}/access.log combined\n\
 </VirtualHost>' > /etc/apache2/sites-available/000-default.conf
 
-# 7. Expor porta 80
-EXPOSE 80
+# 7. Permissões e Ajustes Finais
+# Ajusta permissões de pastas do Laravel
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
-# 8. Script de inicialização
-# ATENÇÃO: Se o start.sh estiver na raiz do repo, usamos COPY start.sh
-# Se estiver dentro de back-end, ele já foi copiado no passo 3.
-# Vou assumir que você criou ele na RAIZ do repo junto com o Dockerfile:
-COPY start.sh /var/www/html/start.sh
+# Vacina contra Windows (Corrige quebra de linha \r e dá permissão de execução)
+# O arquivo start.sh já foi copiado no passo 5 (COPY . .)
 RUN chmod +x /var/www/html/start.sh && sed -i 's/\r$//' /var/www/html/start.sh
 
+# 8. Expor porta e definir comando
+EXPOSE 80
+
 CMD ["/var/www/html/start.sh"]
+    
+# Dar permissão de execução e corrigir quebra de linha (Windows -> Linux)
+# RUN chmod +x /var/www/html/start.sh && sed -i 's/\r$//' /var/www/html/start.sh
