@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y \
     unzip \
     git \
     libpq-dev \
-    && docker-php-ext-install pdo_pgsql mbstring exif pcntl bcmath gd
+    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
 
 # 2. Habilitar mod_rewrite do Apache para rotas do Laravel
 RUN a2enmod rewrite
