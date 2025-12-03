@@ -16,14 +16,3 @@ Route::get('/limpar-tudo', function () {
     
     return "Cache limpo com sucesso! Configurações atualizadas.";
 });
-
-Route::get('/rotas-debug', function () {
-    $routes = Route::getRoutes();
-    $html = "<h1>Lista de Rotas Registradas</h1><ul>";
-    
-    foreach ($routes as $route) {
-        $html .= "<li><strong>" . $route->methods()[0] . "</strong>: " . $route->uri() . "</li>";
-    }
-    
-    return $html . "</ul>";
-});

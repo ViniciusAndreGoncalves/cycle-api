@@ -2,18 +2,27 @@
 
 echo "Iniciando Deploy..."
 
-# 1. Rodar Migrations
+# Limpar caches antigos
+echo "🧹 Limpando caches antigos..."
+php artisan route:clear
+php artisan config:clear
+php artisan cache:clear
+php artisan view:clear
+
+php artisan route:cache
+
+# Rodar Migrations
 echo "Rodando Migrations..."
 php artisan migrate --force
 
-# 2. Rodar Seeders (Garante que a tabela de categorias existe)
+# Rodar Seeders (Garante que a tabela de categorias existe)
 echo "Rodando Seeders..."
 php artisan db:seed --class=AssetSeeder --force
 
-# 3. Limpar Tokens do Sanctum
+# Limpar Tokens do Sanctum
 echo "Limpando tokens expirados..."
 php artisan sanctum:prune-expired
 
-# 4. Iniciar o Apache (Isso mantém o servidor rodando)
+# Iniciar o Apache (Isso mantém o servidor rodando)
 echo "Iniciando Servidor Web..."
 apache2-foreground
