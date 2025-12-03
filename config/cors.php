@@ -26,9 +26,12 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['http://localhost:5173', 'https://*.vercel.app'],
+    'allowed_origins' => [],
 
-    'allowed_origins_patterns' => [],
+    'allowed_origins_patterns' => [
+        'http://localhost:5173', 
+        'https://*.vercel.app'
+    ],
 
     'allowed_headers' => ['*'],
 
