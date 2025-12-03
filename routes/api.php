@@ -32,11 +32,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/user', [AuthController::class, 'destroy'])->name('user.destroy');
 
     //Rotas para Carteira
-    Route::get('/carteira', [CarteiraController::class, 'index'])->name('carteira.index');
-    Route::post('/carteira', [CarteiraController::class, 'store'])->name('carteira.store');
-    Route::get('/carteira/{carteira}', [CarteiraController::class, 'show'])->name('carteira.show');
-    Route::put('/carteira/{carteira}', [CarteiraController::class, 'update'])->name('carteira.update');
-    Route::delete('/carteira/{carteira}', [CarteiraController::class, 'destroy'])->name('carteira.delete');
+    Route::get('/carteira/resumo', [CarteiraController::class, 'resumo']);
+    Route::apiResource('carteira', CarteiraController::class);
     
     //Rotas para Movimentacao
     Route::get('/movimentacoes', [MovimentacaoController::class, 'index'])->name('movimentacoes.index');

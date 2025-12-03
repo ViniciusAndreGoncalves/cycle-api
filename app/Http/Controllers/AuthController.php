@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Carteira;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -23,6 +24,12 @@ class AuthController extends Controller
             'email' => $fields['email'],
             'password' => Hash::make($fields['password']), // Criptografa a senha
         ]);
+        
+        Carteira::create([
+            'user_id' => $user->id,
+            'nome' => 'Minha Carteira Principal',
+            'descricao' => 'Minha Carteira Inicial'
+        ]);
 
         // 3. Criar um Token para ele já entrar logado (Opcional, mas recomendado)
         $token = $user->createToken('myapptoken')->plainTextToken;
@@ -33,6 +40,7 @@ class AuthController extends Controller
             'token' => $token,
             'message' => 'Usuário cadastrado com sucesso!'
         ], 201);
+
     }
 
     public function login(Request $request)

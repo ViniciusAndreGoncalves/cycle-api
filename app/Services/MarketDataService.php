@@ -57,4 +57,29 @@ class MarketDataService
             return $prices;
         });
     }
+
+    /**
+     * Busca detalhes de um ativo para cadastro (Nome, Logo, etc)
+     */
+    public function searchAsset($ticker)
+    {
+        // 1. Tenta buscar na API
+        $response = Http::get("{$this->baseUrl}/quote/{$ticker}", [
+            'token' => $this->token,
+        ]);
+
+        if ($response->failed() || empty($response->json()['results'])) {
+            return null; // Não existe na Brapi
+        }
+
+        $data = $response->json()['results'][0];
+
+        return [
+            'ticker' => $data['symbol'],
+            'nome' => $data['shortName'] ?? $data['longName'] ?? $data['symbol'],
+            // A Brapi retorna o tipo? Às vezes sim, às vezes não. 
+            // Por padrão, se não soubermos, vamos jogar na categoria "Ações" (ID 1) ou criar uma lógica extra.
+            // Para o MVP, vamos assumir que se achou, é válido.
+        ];
+    }
 }
