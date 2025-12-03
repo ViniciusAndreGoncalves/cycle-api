@@ -18,15 +18,17 @@ RUN a2enmod rewrite
 WORKDIR /var/www/html
 
 # 4. Instalar Dependências (Estratégia de Cache)
-# Copia apenas os arquivos do composer primeiro
 COPY composer.json composer.lock ./
 
-# Instala (Se o composer.json não mudar, o Docker usa o cache aqui)
+# Instala sem rodar scripts (pois o código do app ainda não existe)
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
-RUN composer install --no-interaction --optimize-autoloader --no-dev
+RUN composer install --no-interaction --optimize-autoloader --no-dev --no-scripts
 
 # 5. Copia o código fonte (O resto da aplicação)
 COPY . .
+
+# autoload final (com os scripts do Laravel)
+RUN composer dump-autoload --optimize
 
 # 6. Configuração do Apache
 RUN echo '<VirtualHost *:80>\n\
