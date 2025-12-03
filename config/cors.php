@@ -26,7 +26,7 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['http://localhost:5173', 'https://cycle-web-deployment.vercel.app', 'https://cycle-web-deployment-jiv50fdps-vinicius-projects-8f8a19f2.vercel.app', 'https://cycle-web-deployment-mpi5tsd8s-vinicius-projects-8f8a19f2.vercel.app'],
+    'allowed_origins' => ['http://localhost:5173', 'https://*.vercel.app'],
 
     'allowed_origins_patterns' => [],
 
