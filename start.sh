@@ -8,7 +8,7 @@ php artisan migrate --force
 
 # 2. Rodar Seeders (Garante que a tabela de categorias existe)
 echo "Rodando Seeders..."
-php artisan db:seed --class=CategoriaAtivosSeeder --force
+php artisan db:seed --class=AssetSeeder --force
 
 # 3. Limpar Tokens do Sanctum
 echo "Limpando tokens expirados..."
