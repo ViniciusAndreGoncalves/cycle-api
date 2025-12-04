@@ -12,36 +12,20 @@ use App\Http\Controllers\AuthController;
 
 use Illuminate\Support\Facades\Artisan;
 
-Route::get('/diagnostico-controller', function () {
-    $results = [];
-
-    // 1. Verifica se o arquivo existe fisicamente no Linux
-    $path = app_path('Http/Controllers/MovimentacaoController.php');
-    $results['arquivo_existe'] = file_exists($path) ? 'SIM' : 'NÃO (Caminho: ' . $path . ')';
-
-    // 2. Tenta carregar a classe manualmente para ver se explode erro
-    try {
-        if (class_exists(\App\Http\Controllers\MovimentacaoController::class)) {
-            $results['classe_carregavel'] = 'SIM';
-        } else {
-            $results['classe_carregavel'] = 'NÃO (O arquivo existe, mas o PHP não consegue ler a classe inside)';
+// Rota de depuração para listar todas as rotas registradas
+Route::get('/debug-rotas', function () {
+    $routes = [];
+    foreach (Illuminate\Support\Facades\Route::getRoutes() as $route) {
+        // Filtra apenas rotas que tenham "movimentac" no nome ou URL
+        if (str_contains($route->uri(), 'movimentac')) {
+            $routes[] = [
+                'uri' => $route->uri(),
+                'methods' => $route->methods(),
+                'action' => $route->getActionName(),
+            ];
         }
-    } catch (\Throwable $e) {
-        $results['erro_fatal_ao_carregar'] = $e->getMessage();
     }
-
-    // 3. Verifica dependências (O Suspeito Principal)
-    try {
-        if (class_exists(\App\Services\MarketDataService::class)) {
-            $results['service_existe'] = 'SIM';
-        } else {
-            $results['service_existe'] = 'NÃO (MarketDataService não encontrado)';
-        }
-    } catch (\Throwable $e) {
-        $results['erro_service'] = $e->getMessage();
-    }
-
-    return $results;
+    return $routes;
 });
 
 Route::post('/register', [AuthController::class, 'register']);
