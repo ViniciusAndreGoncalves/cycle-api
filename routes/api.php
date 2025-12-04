@@ -12,15 +12,36 @@ use App\Http\Controllers\AuthController;
 
 use Illuminate\Support\Facades\Artisan;
 
-Route::get('/forcar-limpeza', function () {
+Route::get('/diagnostico-controller', function () {
+    $results = [];
+
+    // 1. Verifica se o arquivo existe fisicamente no Linux
+    $path = app_path('Http/Controllers/MovimentacaoController.php');
+    $results['arquivo_existe'] = file_exists($path) ? 'SIM' : 'NÃO (Caminho: ' . $path . ')';
+
+    // 2. Tenta carregar a classe manualmente para ver se explode erro
     try {
-        Artisan::call('optimize:clear');
-        Artisan::call('route:clear');
-        Artisan::call('config:clear');
-        return "Cache limpo com sucesso! Tente usar o app agora.";
-    } catch (\Exception $e) {
-        return "Erro ao limpar: " . $e->getMessage();
+        if (class_exists(\App\Http\Controllers\MovimentacaoController::class)) {
+            $results['classe_carregavel'] = 'SIM';
+        } else {
+            $results['classe_carregavel'] = 'NÃO (O arquivo existe, mas o PHP não consegue ler a classe inside)';
+        }
+    } catch (\Throwable $e) {
+        $results['erro_fatal_ao_carregar'] = $e->getMessage();
     }
+
+    // 3. Verifica dependências (O Suspeito Principal)
+    try {
+        if (class_exists(\App\Services\MarketDataService::class)) {
+            $results['service_existe'] = 'SIM';
+        } else {
+            $results['service_existe'] = 'NÃO (MarketDataService não encontrado)';
+        }
+    } catch (\Throwable $e) {
+        $results['erro_service'] = $e->getMessage();
+    }
+
+    return $results;
 });
 
 Route::post('/register', [AuthController::class, 'register']);
