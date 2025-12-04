@@ -12,6 +12,7 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use App\Services\MarketDataService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class MovimentacaoController extends Controller
 {
@@ -24,80 +25,106 @@ class MovimentacaoController extends Controller
     {
         // Busca todas as movimentações onde a carteira pertence ao usuário logado
         // Usamos o 'whereHas' para filtrar pelo relacionamento
-        $movimentacoes = Movimentacao::whereHas('carteira', function ($query){
+        $movimentacoes = Movimentacao::whereHas('carteira', function ($query) {
             $query->where('user_id', Auth::id());
         })->with(['ativo', 'carteira'])
-        ->latest('data_movimentacao')
-        ->get();
+            ->latest('data_movimentacao')
+            ->get();
 
         return $movimentacoes;
     }
 
     public function store(Request $request, MarketDataService $marketService)
-{
-    // 1. Validação (Certifique-se que o Frontend envia estas chaves exatas)
-    $validated = $request->validate([
-        'ticker'            => 'required|string',
-        'tipo'              => 'required|in:Compra,Venda',
-        'quantidade'        => 'required|numeric|gt:0',
-        'preco_unitario'    => 'required|numeric|gte:0',
-        'data_movimentacao' => 'required|date',
-    ]);
+    {
+        Log::info('--- INÍCIO NOVA TRANSAÇÃO ---');
 
-    $user = Auth::user();
-
-    // Inicia uma transação para garantir integridade
-    return DB::transaction(function () use ($validated, $user, $marketService) {
-
-        // 2. Garante a Carteira
-        $carteira = Carteira::firstOrCreate(
-            ['user_id' => $user->id],
-            ['nome' => 'Principal']
-        );
-
-        $tickerUpper = strtoupper($validated['ticker']);
-
-        // 3. Busca ou Cria o Ativo
-        $ativo = Ativo::where('ticker', $tickerUpper)->first();
-
-        if (!$ativo) {
-            // Busca dados na Brapi (API Externa)
-            $dadosExternos = $marketService->searchAsset($tickerUpper);
-
-            if (!$dadosExternos) {
-                // Se não achar na API externa, aborta tudo (rollback automático da transaction)
-                abort(404, 'Ativo não encontrado na Bolsa. Verifique o Ticker.');
-            }
-
-            // Categorização Automática
-            $nomeCategoria = $this->detectarCategoria($tickerUpper);
-            $categoria = CategoriaAtivo::firstOrCreate(['nome' => $nomeCategoria]);
-
-            $ativo = Ativo::create([
-                'ticker' => $dadosExternos['ticker'], // Garante o ticker oficial da API
-                'nome'   => $dadosExternos['nome'] ?? $tickerUpper,
-                'categoria_ativo_id' => $categoria->id,
-                // Adicione 'logo' ou outros campos se houver
-            ]);
-        }
-
-        // 4. O FINAL QUE FALTOU: Cria a Movimentação
-        $movimentacao = $ativo->movimentacoes()->create([
-            'carteira_id' => $carteira->id,
-            'tipo'        => $validated['tipo'],
-            'quantidade'  => $validated['quantidade'],
-            'valor'       => $validated['preco_unitario'], // Mapeando para o nome da coluna no banco
-            'data'        => $validated['data_movimentacao'],
-            'user_id'     => $user->id // Se sua tabela tiver user_id direto
+        // 1. Validação
+        $validated = $request->validate([
+            'ticker'            => 'required|string',
+            'tipo'              => 'required|in:Compra,Venda',
+            'quantidade'        => 'required|numeric|gt:0',
+            'preco_unitario'    => 'required|numeric|gte:0',
+            'data_movimentacao' => 'required|date',
         ]);
 
-        return response()->json([
-            'message' => 'Movimentação realizada com sucesso!',
-            'data' => $movimentacao
-        ], 201);
+        Log::info('Dados validados:', $validated);
 
-    });
-}
+        $user = Auth::user();
+
+        return DB::transaction(function () use ($validated, $user, $marketService) {
+
+            // Garante a Carteira
+            $carteira = Carteira::firstOrCreate(
+                ['user_id' => $user->id],
+                ['nome' => 'Principal']
+            );
+
+            // Tratamento do Ticker
+            $tickerRaw = strtoupper($validated['ticker']); // O que o usuário digitou (ex: GARE11)
+
+            // Tenta buscar no banco local
+            $ativo = Ativo::where('ticker', $tickerRaw)->first();
+
+            // Se não achou, tenta buscar com .SA (caso tenha sido salvo correto antes)
+            if (!$ativo) {
+                $ativo = Ativo::where('ticker', $tickerRaw . '.SA')->first();
+            }
+
+            if (!$ativo) {
+                Log::info("Ativo {$tickerRaw} não existe no BD local. Buscando fora...");
+
+                // TENTATIVA 1: Com sufixo .SA (Padrão Brasil)
+                $tickerBusca = str_ends_with($tickerRaw, '.SA') ? $tickerRaw : $tickerRaw . '.SA';
+                Log::info("Tentando API externa com: {$tickerBusca}");
+
+                $dadosExternos = $marketService->searchAsset($tickerBusca);
+
+                // TENTATIVA 2: Sem sufixo (Caso seja cripto ou exceção)
+                if (!$dadosExternos) {
+                    Log::info("Falha com .SA. Tentando API externa puro: {$tickerRaw}");
+                    $dadosExternos = $marketService->searchAsset($tickerRaw);
+                }
+
+                if (!$dadosExternos) {
+                    Log::error("FALHA TOTAL: Ativo não encontrado em nenhuma variação.");
+
+                    // Retorna JSON para o front entender o erro
+                    return response()->json([
+                        'message' => "Não encontramos o ativo '{$tickerRaw}'. Tente adicionar '.SA' no final ou verifique o código."
+                    ], 404);
+                }
+
+                Log::info("Sucesso na API externa. Dados recebidos:", $dadosExternos);
+
+                // Categorização
+                $nomeCategoria = $this->detectarCategoria($tickerRaw);
+                $categoria = CategoriaAtivo::firstOrCreate(['nome' => $nomeCategoria]);
+
+                $ativo = Ativo::create([
+                    'ticker' => $dadosExternos['ticker'], // Salva como veio da API (provavelmente GARE11.SA)
+                    'nome'   => $dadosExternos['nome'] ?? $tickerRaw,
+                    'categoria_ativo_id' => $categoria->id,
+                ]);
+            }
+
+            // Cria a movimentação
+            $movimentacao = $ativo->movimentacoes()->create([
+                'carteira_id' => $carteira->id,
+                'tipo'        => $validated['tipo'],
+                'quantidade'  => $validated['quantidade'],
+                'valor'       => $validated['preco_unitario'],
+                'data'        => $validated['data_movimentacao'],
+                'user_id'     => $user->id
+            ]);
+
+            Log::info('--- TRANSAÇÃO SALVA COM SUCESSO ---');
+
+            return response()->json([
+                'message' => 'Movimentação realizada com sucesso!',
+                'data' => $movimentacao
+            ], 201);
+        });
+    }
 
     // --- FUNÇÃO INTELIGENTE DE CATEGORIZAÇÃO ---
     private function detectarCategoria($ticker)
