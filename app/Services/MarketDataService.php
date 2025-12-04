@@ -10,10 +10,14 @@ class MarketDataService
 {
     protected $baseUrl = 'https://brapi.dev/api';
     protected $token;
-    
+
     public function __construct()
     {
         $this->token = env('BRAPI_TOKEN', '');
+
+        if (empty($this->token)) {
+            Log::warning('MarketDataService: BRAPI_TOKEN está vazio ou não foi carregado!');
+        }
     }
     /**
      * Busca cotações atuais de múltiplos ativos
@@ -23,9 +27,9 @@ class MarketDataService
     {
         // Cache por 60 minutos para não ficar lento toda hora
         $cacheKey = 'prices_' . md5(implode('_', $tickers));
-        
+
         return Cache::remember($cacheKey, 60 * 60, function () use ($tickers) {
-            
+
             $prices = [];
 
             // --- MUDANÇA0: BUSCA ATIVO POR ATIVO ---
@@ -47,7 +51,6 @@ class MarketDataService
                         // Se falhar um, loga e continua para o próximo
                         //Log::warning("Falha ao buscar {$ticker}: " . $response->body());
                     }
-
                 } catch (\Exception $e) {
                     Log::error("Erro conexão {$ticker}: " . $e->getMessage());
                 }
@@ -62,22 +65,37 @@ class MarketDataService
     public function searchAsset($ticker)
     {
         // Tenta buscar na API
-        $response = Http::get("{$this->baseUrl}/quote/{$ticker}", [
-            'token' => $this->token,
-        ]);
-
-        if ($response->failed() || empty($response->json()['results'])) {
-            return null; // Não existe na Brapi
+        try {
+            $response = Http::withOptions(['verify' => false])
+                ->timeout(5)
+                ->get("{$this->baseUrl}/quote/{$ticker}", [
+                    'token' => $this->token,
+                ]);
+        } catch (\Exception $e) {
+            Log::error("MarketDataService: Erro crítico de conexão: " . $e->getMessage());
+            return null;
         }
 
-        $data = $response->json()['results'][0];
+        if ($response->failed()) {
+            Log::error("MarketDataService: Brapi retornou erro. Status: " . $response->status());
+            Log::error("MarketDataService: Body: " . $response->body());
+            return null; // Retorna null para o Controller tratar
+        }
+
+        $results = $response->json()['results'] ?? [];
+
+        if (empty($results)) {
+            Log::info("MarketDataService: Brapi retornou 200 mas sem resultados para '{$ticker}'.");
+            return null;
+        }
+
+        $data = $results[0];
+
+        Log::info("MarketDataService: Sucesso. Nome encontrado: " . ($data['shortName'] ?? 'N/A'));
 
         return [
             'ticker' => $data['symbol'],
             'nome' => $data['shortName'] ?? $data['longName'] ?? $data['symbol'],
-            // A Brapi retorna o tipo? Às vezes sim, às vezes não. 
-            // Por padrão, se não souber, jogar na categoria "Ações" (ID 1) ou criar uma lógica extra.
-            // Para o MVP, assume-se que se achou, é válido.
         ];
     }
 }
