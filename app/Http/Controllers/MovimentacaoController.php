@@ -147,14 +147,15 @@ class MovimentacaoController extends Controller
         $validated = request()->validate([
             'carteira_id' => 'sometimes|exists:carteiras,id',
             'ativo_id' => 'sometimes|exists:ativos,id',
-            'tipo' => 'sometimes|in:Compra,Venda,Aporte,Resgate',
+            'tipo' => 'sometimes|in:Compra,Venda',
             'quantidade' => 'sometimes|numeric|gt:0',
             'preco_unitario' => 'sometimes|numeric|gte:0',
             'data_movimentacao' => 'sometimes|date',
         ]);
 
 
-        return $movimentacao->load(['ativo', 'carteira'], 200);
+        $movimentacao->update($validated);
+        return response()->json($movimentacao->load('ativo'), 200);
     }
 
     public function destroy(Movimentacao $movimentacao)

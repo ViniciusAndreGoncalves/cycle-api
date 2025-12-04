@@ -2,6 +2,9 @@
 
 echo "Iniciando Deploy..."
 
+echo "Atualizando autoloader..."
+composer dump-autoload --optimize
+
 # Rodar Migrations
 echo "Rodando Migrations..."
 php artisan migrate --force
