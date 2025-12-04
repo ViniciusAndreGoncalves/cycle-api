@@ -112,8 +112,8 @@ class MovimentacaoController extends Controller
                 'carteira_id' => $carteira->id,
                 'tipo'        => $validated['tipo'],
                 'quantidade'  => $validated['quantidade'],
-                'valor'       => $validated['preco_unitario'],
-                'data'        => $validated['data_movimentacao'],
+                'preco_unitario'       => $validated['preco_unitario'],
+                'data_movimentacao'        => $validated['data_movimentacao'],
                 'user_id'     => $user->id
             ]);
 
