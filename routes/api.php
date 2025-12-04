@@ -49,12 +49,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('carteira', CarteiraController::class);
     
     //Rotas para Movimentacao
-    Route::get('/movimentacoes', [MovimentacaoController::class, 'index'])->name('movimentacoes.index');
-    Route::post('/movimentacoes', [MovimentacaoController::class, 'store'])->name('movimentacoes.store');
-    Route::get('/movimentacoes/{movimentacao}', [MovimentacaoController::class, 'show'])->name('movimentacoes.show');
-    Route::patch('/movimentacoes/{movimentacao}', [MovimentacaoController::class, 'update'])->name('movimentacoes.update');
-    Route::delete('/movimentacoes/{movimentacao}', [MovimentacaoController::class, 'destroy'])->name('movimentacoes.delete');
-
+    Route::apiResource('movimentacoes', MovimentacaoController::class);
     //Rotas com Resource Controllers
     Route::apiResource('despesas', DespesaController::class);
     Route::apiResource('categorias', CategoriaController::class);
