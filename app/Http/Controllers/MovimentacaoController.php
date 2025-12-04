@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\StoreMovimentacaoRequest;
 use App\Models\Ativo;
+use App\Http\Controllers\Controller;
 use App\Models\Movimentacao;
 use App\Models\Carteira;
 use App\Models\CategoriaAtivo;
@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use App\Services\MarketDataService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class MovimentacaoController extends Controller
 {
@@ -33,59 +34,70 @@ class MovimentacaoController extends Controller
     }
 
     public function store(Request $request, MarketDataService $marketService)
-    {
-        $validated = $request->validate([
-            'ticker'            => 'required|string',
-            'tipo'              => 'required|in:Compra,Venda',
-            'quantidade'        => 'required|numeric|gt:0',
-            'preco_unitario'    => 'required|numeric|gte:0',
-            'data_movimentacao' => 'required|date',
-        ]);
+{
+    // 1. Validação (Certifique-se que o Frontend envia estas chaves exatas)
+    $validated = $request->validate([
+        'ticker'            => 'required|string',
+        'tipo'              => 'required|in:Compra,Venda',
+        'quantidade'        => 'required|numeric|gt:0',
+        'preco_unitario'    => 'required|numeric|gte:0',
+        'data_movimentacao' => 'required|date',
+    ]);
 
-        $user = Auth::user();
-        
-        // 1. Garante a Carteira
+    $user = Auth::user();
+
+    // Inicia uma transação para garantir integridade
+    return DB::transaction(function () use ($validated, $user, $marketService) {
+
+        // 2. Garante a Carteira
         $carteira = Carteira::firstOrCreate(
             ['user_id' => $user->id],
             ['nome' => 'Principal']
         );
 
         $tickerUpper = strtoupper($validated['ticker']);
-        
-        // 2. Busca ou Cria o Ativo
+
+        // 3. Busca ou Cria o Ativo
         $ativo = Ativo::where('ticker', $tickerUpper)->first();
 
         if (!$ativo) {
-            // Busca dados na Brapi
+            // Busca dados na Brapi (API Externa)
             $dadosExternos = $marketService->searchAsset($tickerUpper);
 
             if (!$dadosExternos) {
-                return response()->json(['message' => 'Ativo não encontrado na Bolsa. Verifique o código.'], 404);
+                // Se não achar na API externa, aborta tudo (rollback automático da transaction)
+                abort(404, 'Ativo não encontrado na Bolsa. Verifique o Ticker.');
             }
 
-            // --- AQUI ESTÁ A MÁGICA DA CATEGORIZAÇÃO AUTOMÁTICA ---
+            // Categorização Automática
             $nomeCategoria = $this->detectarCategoria($tickerUpper);
             $categoria = CategoriaAtivo::firstOrCreate(['nome' => $nomeCategoria]);
-            // ------------------------------------------------------
 
             $ativo = Ativo::create([
-                'ticker' => $dadosExternos['ticker'],
-                'nome' => $dadosExternos['nome'],
-                'categoria_ativo_id' => $categoria->id
+                'ticker' => $dadosExternos['ticker'], // Garante o ticker oficial da API
+                'nome'   => $dadosExternos['nome'] ?? $tickerUpper,
+                'categoria_ativo_id' => $categoria->id,
+                // Adicione 'logo' ou outros campos se houver
             ]);
         }
 
-        // 3. Cria a Movimentação
-        $movimentacao = $carteira->movimentacoes()->create([
-            'ativo_id' => $ativo->id,
-            'tipo' => $validated['tipo'],
-            'quantidade' => $validated['quantidade'],
-            'preco_unitario' => $validated['preco_unitario'],
-            'data_movimentacao' => $validated['data_movimentacao']
+        // 4. O FINAL QUE FALTOU: Cria a Movimentação
+        $movimentacao = $ativo->movimentacoes()->create([
+            'carteira_id' => $carteira->id,
+            'tipo'        => $validated['tipo'],
+            'quantidade'  => $validated['quantidade'],
+            'valor'       => $validated['preco_unitario'], // Mapeando para o nome da coluna no banco
+            'data'        => $validated['data_movimentacao'],
+            'user_id'     => $user->id // Se sua tabela tiver user_id direto
         ]);
 
-        return response()->json($movimentacao->load('ativo'), 201);
-    }
+        return response()->json([
+            'message' => 'Movimentação realizada com sucesso!',
+            'data' => $movimentacao
+        ], 201);
+
+    });
+}
 
     // --- FUNÇÃO INTELIGENTE DE CATEGORIZAÇÃO ---
     private function detectarCategoria($ticker)
