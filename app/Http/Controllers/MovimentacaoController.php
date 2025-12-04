@@ -113,8 +113,7 @@ class MovimentacaoController extends Controller
                 'tipo'        => $validated['tipo'],
                 'quantidade'  => $validated['quantidade'],
                 'preco_unitario'       => $validated['preco_unitario'],
-                'data_movimentacao'        => $validated['data_movimentacao'],
-                'user_id'     => $user->id
+                'data_movimentacao'        => $validated['data_movimentacao'],                
             ]);
 
             Log::info('--- TRANSAÇÃO SALVA COM SUCESSO ---');
