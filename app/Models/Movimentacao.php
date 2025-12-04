@@ -14,7 +14,6 @@ class Movimentacao extends Model
     protected $fillable = [
         'carteira_id',
         'ativo_id',
-        'user_id',
         'tipo',
         'quantidade',
         'preco_unitario',
