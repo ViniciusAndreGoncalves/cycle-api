@@ -22,4 +22,10 @@ class Ativo extends Model
         //especificar o nome da coluna FK, pois foge do padrão inglês
         return $this->belongsTo(CategoriaAtivo::class, 'categoria_ativo_id');
     }
+
+    public function movimentacoes()
+    {
+        // Isso diz: "Um Ativo tem muitas Movimentações"
+        return $this->hasMany(Movimentacao::class);
+    }
 }
